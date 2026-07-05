@@ -217,7 +217,7 @@ let prices = {};
 const user = JSON.parse(localStorage.getItem('user'));
 const token = localStorage.getItem('token');
 if(!user || !token) {
-  window.location = 'marketpulse_landing.html';
+  window.location = 'index.html';
 } else {
   // Update avatar
   const avatar = document.querySelector('.avatar');
@@ -229,7 +229,7 @@ if(!user || !token) {
 function handleLogout() {
   localStorage.removeItem('user');
   localStorage.removeItem('token');
-  window.location = 'marketpulse_landing.html';
+  window.location = 'index.html';
 }
 
 async function getPrice(symbol) {

@@ -277,7 +277,7 @@
 const user = JSON.parse(localStorage.getItem('user'));
 const token = localStorage.getItem('token');
 if(!user || !token) {
-  window.location = 'marketpulse_landing.html';
+  window.location = 'index.html';
 } else {
   // Populate details
   if (document.getElementById('settingsEmail')) {
@@ -336,7 +336,7 @@ if(!user || !token) {
 function handleLogout() {
   localStorage.removeItem('user');
   localStorage.removeItem('token');
-  window.location = 'marketpulse_landing.html';
+  window.location = 'index.html';
 }
 
 function showPanel(name, el) {
