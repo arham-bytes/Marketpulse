@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MarketPulse — News</title>
+<link rel="stylesheet" href="style.css">
+<style>
+.news-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+.news-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:22px; transition:.2s; cursor:pointer; }
+.news-card:hover { border-color:rgba(107,104,214,.3); transform:translateY(-2px); }
+.news-source { font-size:10px; color:var(--accent2); text-transform:uppercase; letter-spacing:.8px; margin-bottom:10px; }
+.news-title { font-family:'Syne',sans-serif; font-size:15px; font-weight:700; line-height:1.5; margin-bottom:10px; }
+.news-desc { font-size:13px; color:var(--muted); line-height:1.7; margin-bottom:14px; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+.news-footer { display:flex; justify-content:space-between; align-items:center; }
+.news-date { font-size:11px; color:var(--muted); }
+.news-link { font-size:12px; color:var(--accent2); text-decoration:none; }
+.topic-btn { padding:7px 16px; border-radius:8px; font-size:12px; background:var(--card2); border:1px solid var(--border); color:var(--muted); cursor:pointer; font-family:'DM Sans',sans-serif; transition:.2s; }
+.topic-btn.active, .topic-btn:hover { background:var(--accent); color:#fff; border-color:var(--accent); }
+.loading { text-align:center; padding:48px; color:var(--muted); }
+
+/* ── DROPDOWNS ── */
+.topbar-right {
+  position: relative;
+}
+.dropdown-menu-list {
+  display: none;
+  position: absolute;
+  top: 50px;
+  right: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 0;
+  width: 170px;
+  z-index: 200;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+.dropdown-menu-list.show {
+  display: block;
+  animation: fadeIn 0.15s ease-out;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.dropdown-item {
+  display: block;
+  padding: 10px 16px;
+  color: var(--muted);
+  font-size: 13px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: 0.15s;
+  text-align: left;
+}
+.dropdown-item:hover {
+  background: rgba(255,255,255,0.04);
+  color: #fff;
+}
+.dropdown-item.danger:hover {
+  color: var(--red);
+}
+.dropdown-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 4px 0;
+}
+.dropdown-header {
+  padding: 6px 16px;
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-logo"><div class="logo-tri"></div>MarketPulse</div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" href="dashboard.html"><span class="nav-icon">⊞</span>Dashboard</a>
+      <a class="nav-item" href="portfolio.html"><span class="nav-icon">📋</span>Portfolio<span class="badge">2</span></a>
+      <a class="nav-item" href="markets.html"><span class="nav-icon">👤</span>Markets</a>
+      <a class="nav-item active" href="news.html"><span class="nav-icon">📰</span>News</a>
+      <a class="nav-item" href="settings.html"><span class="nav-icon">⚙️</span>Settings</a>
+    </nav>
+    <div class="sidebar-logout" onclick="handleLogout()"><span class="nav-icon">→</span>Logout</div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title">Latest News</div>
+      <div class="topbar-search"><span style="color:var(--muted)">🔍</span><input type="text" placeholder="Search news..."></div>
+      <div class="topbar-right">
+        <div class="notif" onclick="toggleNotifDropdown(event)">
+          🔔<div class="notif-dot"></div>
+          <div class="dropdown-menu-list" id="notifDropdown" style="width: 240px; right: -50px;">
+            <div class="dropdown-header">Notifications</div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-item" style="font-size: 12px; white-space: normal; line-height: 1.4;">
+              <b>MarketPulse:</b> Your portfolio looks strong today! No actions needed.
+            </div>
+            <div class="dropdown-item" style="font-size: 12px; white-space: normal; line-height: 1.4;">
+              <b>System Update:</b> Real historical prices from yfinance and CoinGecko are active!
+            </div>
+          </div>
+        </div>
+        
+        <div class="avatar" onclick="toggleAvatarDropdown(event)">👤</div>
+        <span style="color:var(--muted);font-size:11px;cursor:pointer" onclick="toggleAvatarDropdown(event)">▾</span>
+        
+        <div class="dropdown-menu-list" id="avatarDropdown">
+          <div class="dropdown-header" id="dropdownUserGreeting">User Profile</div>
+          <div class="dropdown-divider"></div>
+          <a href="dashboard.html" class="dropdown-item">⊞ Dashboard</a>
+          <a href="portfolio.html" class="dropdown-item">📋 Portfolio</a>
+          <a href="markets.html" class="dropdown-item">📊 Markets</a>
+          <a href="settings.html" class="dropdown-item">⚙️ Settings</a>
+          <div class="dropdown-divider"></div>
+          <a onclick="handleLogout()" class="dropdown-item danger">→ Logout</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-content">
+      <div style="display:flex;gap:10px;margin-bottom:24px;flex-wrap:wrap;">
+        <button class="topic-btn active" onclick="loadNews('bitcoin',this)">₿ Bitcoin</button>
+        <button class="topic-btn" onclick="loadNews('ethereum',this)">Ξ Ethereum</button>
+        <button class="topic-btn" onclick="loadNews('crypto',this)">🔥 Crypto</button>
+        <button class="topic-btn" onclick="loadNews('stocks',this)">📈 Stocks</button>
+        <button class="topic-btn" onclick="loadNews('defi',this)">🏦 DeFi</button>
+        <button class="topic-btn" onclick="loadNews('nft',this)">🖼️ NFT</button>
+      </div>
+
+      <div id="newsGrid" class="news-grid">
+        <div class="loading" style="grid-column:1/-1">Loading news...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://127.0.0.1:8000';
+
+// Session Check
+const user = JSON.parse(localStorage.getItem('user'));
+const token = localStorage.getItem('token');
+if(!user || !token) {
+  window.location = 'marketpulse_landing.html';
+} else {
+  // Update avatar
+  const avatar = document.querySelector('.avatar');
+  if (avatar && user.username) {
+    avatar.textContent = user.username.charAt(0).toUpperCase();
+  }
+}
+
+function handleLogout() {
+  localStorage.removeItem('user');
+  localStorage.removeItem('token');
+  window.location = 'marketpulse_landing.html';
+}
+
+async function loadNews(query, el) {
+  document.querySelectorAll('.topic-btn').forEach(b=>b.classList.remove('active'));
+  if(el) el.classList.add('active');
+  document.getElementById('newsGrid').innerHTML = '<div class="loading" style="grid-column:1/-1">Loading news...</div>';
+  try {
+    const r = await fetch(`${API}/api/news/${query}`);
+    const data = await r.json();
+    renderNews(data);
+  } catch(e) {
+    renderNews([]);
+  }
+}
+
+function renderNews(data) {
+  const grid = document.getElementById('newsGrid');
+  if(!data.length) {
+    grid.innerHTML = '<div class="loading" style="grid-column:1/-1">No news found. Try another topic!</div>';
+    return;
+  }
+  grid.innerHTML = data.map(n => `
+    <div class="news-card" onclick="window.open('${n.url}','_blank')">
+      <div class="news-source">📰 MarketPulse News</div>
+      <div class="news-title">${n.title||'Untitled'}</div>
+      <div class="news-desc">${n.description||'No description available.'}</div>
+      <div class="news-footer">
+        <span class="news-date">${n.published ? new Date(n.published).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'}</span>
+        <a class="news-link" href="${n.url}" target="_blank">Read more →</a>
+      </div>
+    </div>`).join('');
+}
+
+loadNews('bitcoin', null);
+
+// Dropdown Toggles
+function toggleNotifDropdown(e) {
+  e.stopPropagation();
+  document.getElementById('notifDropdown').classList.toggle('show');
+  document.getElementById('avatarDropdown').classList.remove('show');
+  const dot = document.querySelector('.notif-dot');
+  if (dot) dot.style.display = 'none';
+}
+
+function toggleAvatarDropdown(e) {
+  e.stopPropagation();
+  document.getElementById('avatarDropdown').classList.toggle('show');
+  document.getElementById('notifDropdown').classList.remove('show');
+}
+
+window.addEventListener('click', function() {
+  const notif = document.getElementById('notifDropdown');
+  const avatar = document.getElementById('avatarDropdown');
+  if (notif) notif.classList.remove('show');
+  if (avatar) avatar.classList.remove('show');
+});
+
+// Update dropdown greeting
+if (user && user.username) {
+  const dropdownGreeting = document.getElementById('dropdownUserGreeting');
+  if (dropdownGreeting) {
+    dropdownGreeting.textContent = user.username;
+  }
+}
+</script>
+</body>
+</html>

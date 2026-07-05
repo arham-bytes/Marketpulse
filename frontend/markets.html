@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MarketPulse — Markets</title>
+<link rel="stylesheet" href="style.css">
+<style>
+.filter-bar { display:flex; gap:12px; align-items:center; margin-bottom:20px; flex-wrap:wrap; }
+.filter-btn { padding:7px 16px; border-radius:8px; font-size:12px; background:var(--card2); border:1px solid var(--border); color:var(--muted); cursor:pointer; font-family:'DM Sans',sans-serif; transition:.2s; }
+.filter-btn.active, .filter-btn:hover { background:var(--accent); color:#fff; border-color:var(--accent); }
+.search-input { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:8px 14px; color:#fff; font-size:13px; font-family:'DM Sans',sans-serif; outline:none; width:200px; margin-left:auto; }
+.search-input::placeholder { color:var(--muted); }
+.coin-row { display:grid; grid-template-columns:32px 2fr 1.5fr 1fr 1fr 1fr auto; align-items:center; padding:14px 16px; border-bottom:1px solid rgba(255,255,255,0.04); gap:16px; transition:.15s; }
+.coin-row:hover { background:rgba(255,255,255,0.02); }
+.coin-row:last-child { border-bottom:none; }
+.coin-row-header { color:var(--muted); font-size:11px; font-weight:500; text-transform:uppercase; letter-spacing:.5px; padding:10px 16px; border-bottom:1px solid var(--border); display:grid; grid-template-columns:32px 2fr 1.5fr 1fr 1fr 1fr auto; gap:16px; }
+.coin-icon { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:700; }
+.coin-name { font-size:13px; font-weight:500; }
+.coin-sym { font-size:11px; color:var(--muted); }
+.coin-price { font-size:13px; font-weight:600; font-family:'Syne',sans-serif; }
+.loading { text-align:center; padding:48px; color:var(--muted); font-size:14px; }
+
+/* ── DROPDOWNS ── */
+.topbar-right {
+  position: relative;
+}
+.dropdown-menu-list {
+  display: none;
+  position: absolute;
+  top: 50px;
+  right: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 0;
+  width: 170px;
+  z-index: 200;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+.dropdown-menu-list.show {
+  display: block;
+  animation: fadeIn 0.15s ease-out;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.dropdown-item {
+  display: block;
+  padding: 10px 16px;
+  color: var(--muted);
+  font-size: 13px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: 0.15s;
+  text-align: left;
+}
+.dropdown-item:hover {
+  background: rgba(255,255,255,0.04);
+  color: #fff;
+}
+.dropdown-item.danger:hover {
+  color: var(--red);
+}
+.dropdown-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 4px 0;
+}
+.dropdown-header {
+  padding: 6px 16px;
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-logo"><div class="logo-tri"></div>MarketPulse</div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" href="dashboard.html"><span class="nav-icon">⊞</span>Dashboard</a>
+      <a class="nav-item" href="portfolio.html"><span class="nav-icon">📋</span>Portfolio<span class="badge">2</span></a>
+      <a class="nav-item active" href="markets.html"><span class="nav-icon">👤</span>Markets</a>
+      <a class="nav-item" href="news.html"><span class="nav-icon">📰</span>News</a>
+      <a class="nav-item" href="settings.html"><span class="nav-icon">⚙️</span>Settings</a>
+    </nav>
+    <div class="sidebar-logout" onclick="handleLogout()"><span class="nav-icon">→</span>Logout</div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title">Markets</div>
+      <div class="topbar-search"><span style="color:var(--muted)">🔍</span><input type="text" placeholder="Search coins..."></div>
+      <div class="topbar-right">
+        <div class="notif" onclick="toggleNotifDropdown(event)">
+          🔔<div class="notif-dot"></div>
+          <div class="dropdown-menu-list" id="notifDropdown" style="width: 240px; right: -50px;">
+            <div class="dropdown-header">Notifications</div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-item" style="font-size: 12px; white-space: normal; line-height: 1.4;">
+              <b>MarketPulse:</b> Your portfolio looks strong today! No actions needed.
+            </div>
+            <div class="dropdown-item" style="font-size: 12px; white-space: normal; line-height: 1.4;">
+              <b>System Update:</b> Real historical prices from yfinance and CoinGecko are active!
+            </div>
+          </div>
+        </div>
+        
+        <div class="avatar" onclick="toggleAvatarDropdown(event)">👤</div>
+        <span style="color:var(--muted);font-size:11px;cursor:pointer" onclick="toggleAvatarDropdown(event)">▾</span>
+        
+        <div class="dropdown-menu-list" id="avatarDropdown">
+          <div class="dropdown-header" id="dropdownUserGreeting">User Profile</div>
+          <div class="dropdown-divider"></div>
+          <a href="dashboard.html" class="dropdown-item">⊞ Dashboard</a>
+          <a href="portfolio.html" class="dropdown-item">📋 Portfolio</a>
+          <a href="markets.html" class="dropdown-item">📊 Markets</a>
+          <a href="settings.html" class="dropdown-item">⚙️ Settings</a>
+          <div class="dropdown-divider"></div>
+          <a onclick="handleLogout()" class="dropdown-item danger">→ Logout</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-content">
+      <div class="filter-bar">
+        <button class="filter-btn active" onclick="filterCoins(this,'all')">All</button>
+        <button class="filter-btn" onclick="filterCoins(this,'top')">Top Gainers</button>
+        <button class="filter-btn" onclick="filterCoins(this,'lose')">Top Losers</button>
+        <button class="filter-btn" onclick="filterCoins(this,'watch')">Watchlist</button>
+        <input class="search-input" type="text" placeholder="Search coins..." oninput="searchCoins(this.value)">
+      </div>
+
+      <div class="card">
+        <div class="coin-row-header">
+          <span>#</span><span>Coin</span><span>Price</span><span>24h Change</span><span>Market Cap</span><span>Volume</span><span>Action</span>
+        </div>
+        <div id="coinList"><div class="loading">Loading markets...</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://127.0.0.1:8000';
+
+let allData = [];
+
+// Session Check
+const user = JSON.parse(localStorage.getItem('user'));
+const token = localStorage.getItem('token');
+if(!user || !token) {
+  window.location = 'marketpulse_landing.html';
+} else {
+  // Update avatar
+  const avatar = document.querySelector('.avatar');
+  if (avatar && user.username) {
+    avatar.textContent = user.username.charAt(0).toUpperCase();
+  }
+}
+
+function handleLogout() {
+  localStorage.removeItem('user');
+  localStorage.removeItem('token');
+  window.location = 'marketpulse_landing.html';
+}
+
+async function loadMarkets() {
+  try {
+    const r = await fetch(`${API}/api/prices/list`);
+    if (r.ok) {
+      const data = await r.json();
+      allData = data.map(item => ({
+        id: item.id,
+        symbol: item.symbol,
+        name: item.name,
+        color: item.color,
+        icon: item.icon,
+        price: item.price || 0,
+        change: item.change_24h || 0,
+        rank: item.rank,
+        type: item.type
+      }));
+    }
+  } catch (e) {
+    console.error("Error loading markets:", e);
+    allData = [];
+  }
+  renderCoins(allData);
+}
+
+function renderCoins(data) {
+  const el = document.getElementById('coinList');
+  if(!data.length) { el.innerHTML='<div class="loading">No assets found</div>'; return; }
+  el.innerHTML = data.map((c,i) => `
+    <div class="coin-row">
+      <span style="color:var(--muted);font-size:13px">${c.rank}</span>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="coin-icon" style="background:${c.color}22;color:${c.color}">${c.icon}</div>
+        <div><div class="coin-name">${c.name}</div><div class="coin-sym">${c.symbol}</div></div>
+      </div>
+      <div class="coin-price">$${c.price.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+      <div class="${c.change>=0?'tag tag-green':'tag tag-red'}">${c.change>=0?'+':''}${c.change?.toFixed(2)||0}%</div>
+      <div style="font-size:13px;color:var(--muted)">$${(c.price*21000000/1e9).toFixed(1)}B</div>
+      <div style="font-size:13px;color:var(--muted)">$${(c.price*1500/1e6).toFixed(1)}M</div>
+      <button class="btn btn-accent btn-sm" onclick="addToPortfolio('${c.symbol}')">+ Add</button>
+    </div>`).join('');
+}
+
+function filterCoins(el, type) {
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  if(type==='all') renderCoins(allData);
+  else if(type==='top') renderCoins([...allData].sort((a,b)=>b.change-a.change).slice(0,5));
+  else if(type==='lose') renderCoins([...allData].sort((a,b)=>a.change-b.change).slice(0,5));
+  else renderCoins(allData.filter(c=>['btc','eth'].includes(c.symbol.toLowerCase())));
+}
+
+function searchCoins(q) {
+  const f = allData.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())||c.symbol.toLowerCase().includes(q.toLowerCase()));
+  renderCoins(f);
+}
+
+async function addToPortfolio(symbol) {
+  const qty = parseFloat(prompt(`How many units of ${symbol.toUpperCase()} do you want to add?`));
+  const price = parseFloat(prompt('At what buy price (USD)?'));
+  if(isNaN(qty) || isNaN(price) || qty <= 0 || price <= 0) {
+    alert("Sab fields sahi se bharo!");
+    return;
+  }
+  
+  try {
+    const response = await fetch(`${API}/api/portfolio/add?symbol=${symbol}&quantity=${qty}&buy_price=${price}`, {
+      method:'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token
+      }
+    });
+    if (response.ok) {
+      alert(`${symbol.toUpperCase()} added to portfolio!`);
+    } else {
+      const data = await response.json();
+      alert("Error adding to portfolio: " + (data.detail || "Server error"));
+    }
+  } catch (err) {
+    console.error("Error adding to portfolio:", err);
+    alert('Connection error');
+  }
+}
+
+loadMarkets();
+setInterval(loadMarkets, 60000);
+
+// Dropdown Toggles
+function toggleNotifDropdown(e) {
+  e.stopPropagation();
+  document.getElementById('notifDropdown').classList.toggle('show');
+  document.getElementById('avatarDropdown').classList.remove('show');
+  const dot = document.querySelector('.notif-dot');
+  if (dot) dot.style.display = 'none';
+}
+
+function toggleAvatarDropdown(e) {
+  e.stopPropagation();
+  document.getElementById('avatarDropdown').classList.toggle('show');
+  document.getElementById('notifDropdown').classList.remove('show');
+}
+
+window.addEventListener('click', function() {
+  const notif = document.getElementById('notifDropdown');
+  const avatar = document.getElementById('avatarDropdown');
+  if (notif) notif.classList.remove('show');
+  if (avatar) avatar.classList.remove('show');
+});
+
+// Update dropdown greeting
+if (user && user.username) {
+  const dropdownGreeting = document.getElementById('dropdownUserGreeting');
+  if (dropdownGreeting) {
+    dropdownGreeting.textContent = user.username;
+  }
+}
+</script>
+</body>
+</html>

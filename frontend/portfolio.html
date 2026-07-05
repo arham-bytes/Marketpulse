@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MarketPulse — Portfolio</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+.stat-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:20px 24px; }
+.stat-label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.8px; margin-bottom:8px; }
+.stat-val { font-family:'Syne',sans-serif; font-size:22px; font-weight:700; }
+.stat-change { font-size:12px; margin-top:4px; }
+
+.add-form { display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:12px; align-items:end; }
+.form-group label { font-size:11px; color:var(--muted); display:block; margin-bottom:6px; }
+.form-input { width:100%; background:var(--card2); border:1px solid var(--border); border-radius:8px; padding:10px 14px; color:#fff; font-size:13px; font-family:'DM Sans',sans-serif; outline:none; }
+.form-input:focus { border-color:var(--accent); }
+.form-input::placeholder { color:var(--muted); }
+
+/* ── DROPDOWNS ── */
+.topbar-right {
+  position: relative;
+}
+.dropdown-menu-list {
+  display: none;
+  position: absolute;
+  top: 50px;
+  right: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 0;
+  width: 170px;
+  z-index: 200;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+.dropdown-menu-list.show {
+  display: block;
+  animation: fadeIn 0.15s ease-out;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.dropdown-item {
+  display: block;
+  padding: 10px 16px;
+  color: var(--muted);
+  font-size: 13px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: 0.15s;
+  text-align: left;
+}
+.dropdown-item:hover {
+  background: rgba(255,255,255,0.04);
+  color: #fff;
+}
+.dropdown-item.danger:hover {
+  color: var(--red);
+}
+.dropdown-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 4px 0;
+}
+.dropdown-header {
+  padding: 6px 16px;
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-logo"><div class="logo-tri"></div>MarketPulse</div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" href="dashboard.html"><span class="nav-icon">⊞</span>Dashboard</a>
+      <a class="nav-item active" href="portfolio.html"><span class="nav-icon">📋</span>Portfolio<span class="badge">2</span></a>
+      <a class="nav-item" href="markets.html"><span class="nav-icon">👤</span>Markets</a>
+      <a class="nav-item" href="news.html"><span class="nav-icon">📰</span>News</a>
+      <a class="nav-item" href="settings.html"><span class="nav-icon">⚙️</span>Settings</a>
+    </nav>
+    <div class="sidebar-logout" onclick="handleLogout()"><span class="nav-icon">→</span>Logout</div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title">Portfolio</div>
+      <div class="topbar-search"><span style="color:var(--muted)">🔍</span><input type="text" placeholder="Search coins..."></div>
+      <div class="topbar-right">
+        <div class="notif" onclick="toggleNotifDropdown(event)">
+          🔔<div class="notif-dot"></div>
+          <div class="dropdown-menu-list" id="notifDropdown" style="width: 240px; right: -50px;">
+            <div class="dropdown-header">Notifications</div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-item" style="font-size: 12px; white-space: normal; line-height: 1.4;">
+              <b>MarketPulse:</b> Your portfolio looks strong today! No actions needed.
+            </div>
+            <div class="dropdown-item" style="font-size: 12px; white-space: normal; line-height: 1.4;">
+              <b>System Update:</b> Real historical prices from yfinance and CoinGecko are active!
+            </div>
+          </div>
+        </div>
+        
+        <div class="avatar" onclick="toggleAvatarDropdown(event)">👤</div>
+        <span style="color:var(--muted);font-size:11px;cursor:pointer" onclick="toggleAvatarDropdown(event)">▾</span>
+        
+        <div class="dropdown-menu-list" id="avatarDropdown">
+          <div class="dropdown-header" id="dropdownUserGreeting">User Profile</div>
+          <div class="dropdown-divider"></div>
+          <a href="dashboard.html" class="dropdown-item">⊞ Dashboard</a>
+          <a href="portfolio.html" class="dropdown-item">📋 Portfolio</a>
+          <a href="markets.html" class="dropdown-item">📊 Markets</a>
+          <a href="settings.html" class="dropdown-item">⚙️ Settings</a>
+          <div class="dropdown-divider"></div>
+          <a onclick="handleLogout()" class="dropdown-item danger">→ Logout</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-content">
+      <!-- Stats Row -->
+      <div class="grid-4" style="margin-bottom:24px;">
+        <div class="stat-card">
+          <div class="stat-label">Total Value</div>
+          <div class="stat-val" id="totalVal">$0.00</div>
+          <div class="stat-change tag tag-green">+2.31% today</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total Invested</div>
+          <div class="stat-val" id="totalInvested">$0.00</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Profit / Loss</div>
+          <div class="stat-val" id="totalPnl" style="color:var(--green)">$0.00</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Holdings</div>
+          <div class="stat-val" id="holdingsCount">0</div>
+        </div>
+      </div>
+
+      <!-- Add Holding -->
+      <div class="card" style="margin-bottom:24px;">
+        <div class="card-title" style="margin-bottom:16px">Add Holding</div>
+        <div class="add-form">
+          <div class="form-group">
+            <label>Coin Symbol</label>
+            <input class="form-input" id="pSymbol" type="text" placeholder="e.g. bitcoin">
+          </div>
+          <div class="form-group">
+            <label>Quantity</label>
+            <input class="form-input" id="pQty" type="number" placeholder="0.00">
+          </div>
+          <div class="form-group">
+            <label>Buy Price (USD)</label>
+            <input class="form-input" id="pPrice" type="number" placeholder="0.00">
+          </div>
+          <div class="form-group">
+            <label>&nbsp;</label>
+            <button class="btn btn-accent" onclick="addHolding()">+ Add</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Portfolio Table -->
+      <div class="card" style="margin-bottom:24px;">
+        <div class="card-title" style="margin-bottom:16px">My Holdings</div>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Coin</th>
+              <th>Quantity</th>
+              <th>Buy Price</th>
+              <th>Current Price</th>
+              <th>Value</th>
+              <th>P&L</th>
+              <th>Date</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="portfolioBody">
+            <tr><td colspan="8" style="color:var(--muted);text-align:center;padding:32px">No holdings yet. Add your first!</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Chart -->
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title" style="margin-bottom:16px">Portfolio Allocation</div>
+          <canvas id="donutChart" height="220"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-title" style="margin-bottom:16px">P&L Overview</div>
+          <canvas id="pnlChart" height="220"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://127.0.0.1:8000';
+let portfolio = [];
+let prices = {};
+
+// Session Check
+const user = JSON.parse(localStorage.getItem('user'));
+const token = localStorage.getItem('token');
+if(!user || !token) {
+  window.location = 'marketpulse_landing.html';
+} else {
+  // Update avatar
+  const avatar = document.querySelector('.avatar');
+  if (avatar && user.username) {
+    avatar.textContent = user.username.charAt(0).toUpperCase();
+  }
+}
+
+function handleLogout() {
+  localStorage.removeItem('user');
+  localStorage.removeItem('token');
+  window.location = 'marketpulse_landing.html';
+}
+
+async function getPrice(symbol) {
+  if(prices[symbol]) return prices[symbol];
+  try {
+    const r = await fetch(`${API}/api/prices/crypto/${symbol}`);
+    const d = await r.json();
+    prices[symbol] = d.price || 0;
+    return prices[symbol];
+  } catch { return 0; }
+}
+
+async function loadPortfolio() {
+  try {
+    const r = await fetch(`${API}/api/portfolio/`, {
+      headers: {
+        'Authorization': 'Bearer ' + token
+      }
+    });
+    if (!r.ok) throw new Error("Auth failed");
+    
+    portfolio = await r.json();
+    await renderPortfolio();
+  } catch(e) { 
+    console.error(e); 
+    portfolio = [];
+    renderPortfolio();
+  }
+}
+
+async function renderPortfolio() {
+  const tbody = document.getElementById('portfolioBody');
+  if(!portfolio.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="color:var(--muted);text-align:center;padding:32px">No holdings yet. Add your first!</td></tr>';
+    updateStats(0,0);
+    return;
+  }
+  let totalVal=0, totalInvested=0;
+  
+  // Fetch current prices in bulk first to optimize speed
+  const symbols = portfolio.map(p => p.symbol).join(',');
+  let priceMap = {};
+  try {
+    const prResponse = await fetch(`${API}/api/prices/multiple?symbols=${symbols}`);
+    priceMap = await prResponse.json();
+  } catch (e) {
+    console.error("Bulk price load failed, using individual fetches:", e);
+  }
+  
+  const rows = await Promise.all(portfolio.map(async item => {
+    const cur = priceMap[item.symbol.toLowerCase()]?.price || await getPrice(item.symbol);
+    const val = cur * item.quantity;
+    const invested = item.buy_price * item.quantity;
+    const pnl = val - invested;
+    totalVal += val; totalInvested += invested;
+    return { item, cur, val, invested, pnl };
+  }));
+  
+  updateStats(totalVal, totalInvested);
+  
+  tbody.innerHTML = rows.map(({item,cur,val,invested,pnl}) => `
+    <tr>
+      <td><b>${item.symbol.toUpperCase()}</b></td>
+      <td>${item.quantity}</td>
+      <td>$${Number(item.buy_price).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+      <td>$${cur.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+      <td>$${val.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+      <td><span class="${pnl>=0?'tag tag-green':'tag tag-red'}">${pnl>=0?'+':''}$${pnl.toFixed(2)}</span></td>
+      <td>${item.bought_at?.split('T')[0]||'—'}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="removeHolding(${item.id})">Remove</button></td>
+    </tr>`).join('');
+    
+  document.getElementById('holdingsCount').textContent = portfolio.length;
+  renderCharts(rows);
+}
+
+function updateStats(val, invested) {
+  const pnl = val - invested;
+  document.getElementById('totalVal').textContent = '$'+val.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  document.getElementById('totalInvested').textContent = '$'+invested.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  document.getElementById('totalPnl').textContent = (pnl>=0?'+':'')+'$'+pnl.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  document.getElementById('totalPnl').style.color = pnl>=0?'var(--green)':'var(--red)';
+}
+
+async function addHolding() {
+  const symbol = document.getElementById('pSymbol').value.trim().toLowerCase();
+  const qty = parseFloat(document.getElementById('pQty').value);
+  const price = parseFloat(document.getElementById('pPrice').value);
+  if(!symbol||isNaN(qty)||isNaN(price)||qty<=0||price<=0) { alert('Sab fields sahi se bharo!'); return; }
+  
+  try {
+    const response = await fetch(`${API}/api/portfolio/add?symbol=${symbol}&quantity=${qty}&buy_price=${price}`, {
+      method:'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token
+      }
+    });
+    if (response.ok) {
+      document.getElementById('pSymbol').value='';
+      document.getElementById('pQty').value='';
+      document.getElementById('pPrice').value='';
+      loadPortfolio();
+    } else {
+      const data = await response.json();
+      alert("Error adding asset: " + (data.detail || "Server error"));
+    }
+  } catch (err) {
+    console.error("Error adding holding:", err);
+    alert("Connection error");
+  }
+}
+
+async function removeHolding(id) {
+  if (!confirm("Are you sure you want to remove this holding?")) return;
+  try {
+    const response = await fetch(`${API}/api/portfolio/remove/${id}`, {
+      method:'DELETE',
+      headers: {
+        'Authorization': 'Bearer ' + token
+      }
+    });
+    if (response.ok) {
+      loadPortfolio();
+    } else {
+      alert("Could not remove holding.");
+    }
+  } catch (err) {
+    console.error("Error removing holding:", err);
+  }
+}
+
+function renderCharts(rows) {
+  // Donut
+  const dc = document.getElementById('donutChart').getContext('2d');
+  new Chart(dc, { type:'doughnut', data:{ labels:rows.map(r=>r.item.symbol.toUpperCase()), datasets:[{ data:rows.map(r=>r.val), backgroundColor:['#6b68d6','#f7931a','#627eea','#4ade80','#f87171'], borderWidth:0 }] }, options:{ plugins:{ legend:{ labels:{ color:'#7e7aad' } } } } });
+  // PnL bar
+  const pc = document.getElementById('pnlChart').getContext('2d');
+  new Chart(pc, { type:'bar', data:{ labels:rows.map(r=>r.item.symbol.toUpperCase()), datasets:[{ data:rows.map(r=>r.pnl), backgroundColor:rows.map(r=>r.pnl>=0?'rgba(74,222,128,.5)':'rgba(248,113,113,.5)'), borderRadius:6 }] }, options:{ plugins:{legend:{display:false}}, scales:{ x:{ticks:{color:'#7e7aad'},grid:{color:'rgba(255,255,255,0.04)'}}, y:{ticks:{color:'#7e7aad'},grid:{color:'rgba(255,255,255,0.04)'}} } } });
+}
+
+// Dropdown Toggles
+function toggleNotifDropdown(e) {
+  e.stopPropagation();
+  document.getElementById('notifDropdown').classList.toggle('show');
+  document.getElementById('avatarDropdown').classList.remove('show');
+  const dot = document.querySelector('.notif-dot');
+  if (dot) dot.style.display = 'none';
+}
+
+function toggleAvatarDropdown(e) {
+  e.stopPropagation();
+  document.getElementById('avatarDropdown').classList.toggle('show');
+  document.getElementById('notifDropdown').classList.remove('show');
+}
+
+window.addEventListener('click', function() {
+  const notif = document.getElementById('notifDropdown');
+  const avatar = document.getElementById('avatarDropdown');
+  if (notif) notif.classList.remove('show');
+  if (avatar) avatar.classList.remove('show');
+});
+
+// Update dropdown greeting
+if (user && user.username) {
+  const dropdownGreeting = document.getElementById('dropdownUserGreeting');
+  if (dropdownGreeting) {
+    dropdownGreeting.textContent = user.username;
+  }
+}
+
+loadPortfolio();
+</script>
+</body>
+</html>
