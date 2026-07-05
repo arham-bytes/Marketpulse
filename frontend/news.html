@@ -143,7 +143,9 @@
 </div>
 
 <script>
-const API = 'http://127.0.0.1:8000';
+const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://127.0.0.1:8000'
+  : 'https://marketpulse-backend.onrender.com';
 
 // Session Check
 const user = JSON.parse(localStorage.getItem('user'));

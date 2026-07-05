@@ -515,7 +515,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
 </div>
 
 <script>
-const API = 'http://127.0.0.1:8000';
+const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://127.0.0.1:8000'
+  : 'https://marketpulse-backend.onrender.com';
 
 // Global cache of market prices (updated dynamically)
 let marketPrices = {};
