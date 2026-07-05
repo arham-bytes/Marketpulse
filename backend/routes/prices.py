@@ -1,5 +1,6 @@
 import requests
 import yfinance as yf
+import time
 from fastapi import APIRouter, HTTPException, Query
 from database import get_connection
 from datetime import datetime, timedelta, timezone
@@ -9,6 +10,22 @@ router = APIRouter()
 
 COINGECKO_PRICE_URL = "https://api.coingecko.com/api/v3/simple/price"
 COINGECKO_MARKETS_URL = "https://api.coingecko.com/api/v3/coins/markets"
+
+# Simple in-memory cache for historical chart data
+# key: (symbol, timeframe) -> value: (timestamp, data_dict)
+historical_cache = {}
+
+def get_cached_historical(symbol: str, timeframe: str, max_age_seconds: int = 300):
+    key = (symbol.upper(), timeframe.upper())
+    if key in historical_cache:
+        ts, data = historical_cache[key]
+        if time.time() - ts < max_age_seconds:
+            return data
+    return None
+
+def set_cached_historical(symbol: str, timeframe: str, data: dict):
+    key = (symbol.upper(), timeframe.upper())
+    historical_cache[key] = (time.time(), data)
 
 # Fallback prices for popular cryptos
 CRYPTO_DEFAULTS = {
@@ -39,6 +56,12 @@ STOCK_DEFAULTS = {
 def get_price(symbol: str):
     """Retrieve current price for a cryptocurrency or stock."""
     symbol = symbol.strip().upper()
+    
+    # 0. Try cache first (fresh for 60 seconds)
+    cached = get_cached_price(symbol, max_age_seconds=60)
+    if cached:
+        return cached
+        
     asset_type = get_asset_type(symbol)
     
     if asset_type == "crypto":
@@ -127,10 +150,21 @@ def get_multiple_prices(symbols: str):
     symbol_list = [s.strip().upper() for s in symbols.split(",") if s.strip()]
     results = {}
     
+    # 1. Fetch fresh cached prices first (fresh for 60 seconds)
+    for sym in symbol_list:
+        cached = get_cached_price(sym, max_age_seconds=60)
+        if cached:
+            results[sym.lower()] = {"price": cached["price"], "change_24h": cached["change_24h"], "type": cached["type"], "cached": True}
+            
+    # Check what is missing from the cache
+    missing_symbols = [sym for sym in symbol_list if sym.lower() not in results]
+    if not missing_symbols:
+        return results
+        
     cryptos_to_fetch = []
     stocks_to_fetch = []
     
-    for sym in symbol_list:
+    for sym in missing_symbols:
         asset_type = get_asset_type(sym)
         if asset_type == "crypto":
             cryptos_to_fetch.append(sym)
@@ -221,7 +255,7 @@ def get_multiple_prices(symbols: str):
     for sym in symbol_list:
         sym_key = sym.lower()
         if sym_key not in results:
-            cached = get_cached_price(sym)
+            cached = get_cached_price(sym, max_age_seconds=86400) # Use database cache even if old
             if cached:
                 results[sym_key] = {"price": cached["price"], "change_24h": cached["change_24h"], "type": cached["type"], "cached": True}
             else:
@@ -287,8 +321,15 @@ def list_markets(type: str = "all"):
 def get_historical_data(symbol: str, timeframe: str = "1D"):
     """Get historical chart data for a crypto or stock."""
     symbol = symbol.strip().upper()
-    asset_type = get_asset_type(symbol)
     timeframe = timeframe.strip().upper()
+    
+    # 0. Try in-memory historical cache (5 mins for short, 15 mins for long timeframes)
+    cache_age = 900 if timeframe in ["1W", "1M"] else 300
+    cached = get_cached_historical(symbol, timeframe, max_age_seconds=cache_age)
+    if cached:
+        return cached
+        
+    asset_type = get_asset_type(symbol)
     
     if asset_type == "crypto":
         # 1. Try yfinance first
@@ -332,7 +373,9 @@ def get_historical_data(symbol: str, timeframe: str = "1D"):
                         label = idx.strftime("%b %d")
                     parsed_labels.append(label)
                     parsed_prices.append(price)
-                return {"labels": parsed_labels, "prices": parsed_prices}
+                result = {"labels": parsed_labels, "prices": parsed_prices}
+                set_cached_historical(symbol, timeframe, result)
+                return result
         except Exception as yf_hist_err:
             print(f"Primary yfinance crypto historical fetch failed for {symbol}: {yf_hist_err}")
             
@@ -380,7 +423,9 @@ def get_historical_data(symbol: str, timeframe: str = "1D"):
                     parsed_labels.append(label)
                     parsed_prices.append(price)
                     
-                return {"labels": parsed_labels, "prices": parsed_prices}
+                result = {"labels": parsed_labels, "prices": parsed_prices}
+                set_cached_historical(symbol, timeframe, result)
+                return result
             else:
                 raise Exception(f"CoinGecko historical status code {response.status_code}")
         except Exception as e:
@@ -433,12 +478,16 @@ def get_historical_data(symbol: str, timeframe: str = "1D"):
                     parsed_labels.append(label)
                     parsed_prices.append(price)
                     
-                return {"labels": parsed_labels, "prices": parsed_prices}
+                result = {"labels": parsed_labels, "prices": parsed_prices}
+                set_cached_historical(symbol, timeframe, result)
+                return result
         except Exception as e:
             print(f"yfinance historical fetch error for {symbol}: {e}")
             
     # Fail-safe Mock Data Generator
-    return generate_mock_historical(symbol, timeframe)
+    result = generate_mock_historical(symbol, timeframe)
+    set_cached_historical(symbol, timeframe, result)
+    return result
 
 @router.get("/historical/compare")
 def compare_historical_data(symbol1: str, symbol2: str, timeframe: str = "1D"):
@@ -484,24 +533,29 @@ def cache_price(symbol: str, price: float, change: float):
     except Exception as e:
         print(f"Database caching error for {symbol}: {e}")
 
-def get_cached_price(symbol: str):
-    """Retrieve the cached price from the database."""
+def get_cached_price(symbol: str, max_age_seconds: int = 60):
+    """Retrieve the cached price from the database if it is younger than max_age_seconds."""
     symbol = symbol.lower().strip()
     try:
         conn = get_connection()
         cur = conn.cursor()
-        cur.execute("SELECT price, change_24h FROM price_cache WHERE symbol = %s", (symbol,))
+        cur.execute("SELECT price, change_24h, updated_at FROM price_cache WHERE symbol = %s", (symbol,))
         row = cur.fetchone()
         cur.close()
         conn.close()
         if row:
-            asset_type = get_asset_type(symbol)
-            return {
-                "symbol": symbol.upper(),
-                "price": float(row[0]),
-                "change_24h": float(row[1]),
-                "type": asset_type
-            }
+            price, change_24h, updated_at = row
+            # Calculate cache age
+            age = (datetime.now() - updated_at).total_seconds()
+            if age < max_age_seconds:
+                asset_type = get_asset_type(symbol)
+                return {
+                    "symbol": symbol.upper(),
+                    "price": float(price),
+                    "change_24h": float(change_24h),
+                    "type": asset_type,
+                    "cached": True
+                }
     except Exception as e:
         print(f"Database cache retrieval error for {symbol}: {e}")
     return None
